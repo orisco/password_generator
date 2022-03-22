@@ -2,6 +2,7 @@ from tkinter import *
 from tkinter import messagebox
 import pyperclip
 import random
+import json
 
 WHITE = "white"
 # ---------------------------- PASSWORD GENERATOR ------------------------------- #
@@ -16,11 +17,12 @@ def generate_password():
     password_list += [char for char in random.choices(numbers, k=random.randint(2, 4))]
 
     random.shuffle(password_list)
-    password = "".join(password_list)
-    password_input.insert(0, password)
-    pyperclip.copy(password)
+    new_password = "".join(password_list)
+    password_input.insert(0, new_password)
+    pyperclip.copy(new_password)
 
 # ---------------------------- SAVE PASSWORD ------------------------------- #
+
 def clear_fields():
     website_input.delete(0, END)
     email_input.delete(0, END)
@@ -28,9 +30,16 @@ def clear_fields():
 
 
 def on_add():
-    website = website_input.get()
+    website = website_input.get().lower()
     email = email_input.get()
     password = password_input.get()
+    new_data = {
+        website: {
+            "email": email,
+            "password": password
+        }
+    }
+
     if len(website) == 0:
         messagebox.showerror(title="website",
                              message="Please enter the website's name")
@@ -48,12 +57,39 @@ def on_add():
                                                              f"\nEmail: {email}\nPassword: {password}\n"
                                                              f"Is it ok to save?")
     if response:
-        with open("data.txt", "a") as file:
-            file.write(f"{website} | {email} | {password}\n")
-        clear_fields()
+        try:
+            with open("data.json", "r") as data_file:
+                passwords_file = json.load(data_file)
+                passwords_file.update(new_data)
+            with open("data.json", "w") as data_file:
+                json.dump(passwords_file, data_file, indent=4)
+
+        except FileNotFoundError:
+            with open("data.json", "w") as data_file:
+                json.dump(new_data, data_file, indent=4)
+
+        finally:
+            clear_fields()
     else:
         return
+# ---------------------------- SEARCH ------------------------------- #
 
+def search_website():
+    website = website_input.get().lower()
+    try:
+        with open("data.json", "r") as data_file:
+            passwords_file = json.load(data_file)
+
+    except FileNotFoundError:
+        messagebox.showerror(message="No password file found")
+
+    else:
+        if website in passwords_file:
+            email = passwords_file[website]['email']
+            password = passwords_file[website]['password']
+            messagebox.showinfo(title=website, message=f"email: {email}\npassword: {password}")
+        else:
+            messagebox.showerror(message="No website info found")
 
 # ---------------------------- UI SETUP ------------------------------- #
 window = Tk()
@@ -67,25 +103,28 @@ canvas.grid(column=1, row=0)
 website_label = Label(text="Website:", background="white", fg="black")
 website_label.grid(column=0, row=1)
 
-website_input = Entry(width=35, background="white", fg="black", highlightthickness=0, insertbackground="black")
-website_input.grid(column=1, row=1, columnspan=2)
+website_input = Entry(width=21, background="white", fg="black", highlightthickness=0, insertbackground="black")
+website_input.grid(column=1, row=1)
 website_input.focus()
 
-email_label = Label(text="Email/Username:", background="white", fg="black")
+search_button = Button(text="Search", width=11, background="white", fg="black", highlightbackground="white", command=search_website)
+search_button.grid(column=2, row=1)
+
+email_label = Label(text="Email:", background="white", fg="black")
 email_label.grid(column=0, row=2)
 
-email_input = Entry(width=35, background="white", fg="black", highlightthickness=0, insertbackground="black")
+email_input = Entry(width=36, background="white", fg="black", highlightthickness=0, insertbackground="black")
 email_input.grid(column=1, row=2, columnspan=2)
 
-password = Label(text="Password", background="white", fg="black")
-password.grid(column=0, row=3)
+password_label = Label(text="Password", background="white", fg="black")
+password_label.grid(column=0, row=3)
 
 password_input = Entry(width=21, background="white", fg="black", highlightthickness=0, insertbackground="black")
 password_input.grid(column=1, row=3)
 
-generate_pass_button = Button(text="Generate Password", width=14, background="white", fg="black", highlightbackground="white", command=generate_password)
+generate_pass_button = Button(text="Generate Password", width=11, background="white", fg="black", highlightbackground="white", command=generate_password)
 generate_pass_button.grid(column=2, row=3)
 
-add_button = Button(text="Add", width=36, background="white", fg="black", highlightthickness=0,  highlightbackground="white", command=on_add)
+add_button = Button(text="Add", width=33, background="white", fg="black", highlightthickness=0,  highlightbackground="white", command=on_add)
 add_button.grid(column=1, row=4, columnspan=2)
 window.mainloop()
